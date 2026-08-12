@@ -1,64 +1,75 @@
-plugins {
-    id 'net.neoforged.moddev' version '2.0.49-beta'
+buildscript {
+    repositories {
+        maven { url = 'https://maven.minecraftforge.net/' }
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'net.minecraftforge.gradle:ForgeGradle:5.1.+'
+    }
 }
+
+apply plugin: 'net.minecraftforge.gradle'
 
 group = project.group
 version = project.mod_version
+archivesBaseName = project.mod_id
 
-java.toolchain.languageVersion = JavaLanguageVersion.of(project.java_version as int)
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
 
-repositories {
-    mavenCentral()
-    maven { url = uri('https://maven.michiyo.me/releases') }
-    maven {
-        name = 'kotori316'
-        url = uri('https://maven.kotori316.com')
+minecraft {
+    mappings channel: 'stable', version: project.minecraft_mappings
+
+    runs {
+        client {
+            workingDirectory project.file('run')
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+            mods {
+                opensockets {
+                    source sourceSets.main
+                }
+            }
+        }
+        server {
+            workingDirectory project.file('run')
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+            mods {
+                opensockets {
+                    source sourceSets.main
+                }
+            }
+        }
     }
 }
 
-neoForge {
-    version = project.neoforge_version
-    parchment {
-        minecraftVersion = project.parchment_minecraft
-        mappingsVersion = project.parchment_version
-    }
-    runs {
-        configureEach {
-            ideName = "OpenSockets ${name.capitalize()}"
+repositories {
+    maven {
+        name = 'MightyPirates'
+        url = 'https://maven.cil.li/'
+        metadataSources {
+            mavenPom()
+            artifact()
         }
-        client { client() }
-        server { server() }
     }
-    mods {
-        "${project.mod_id}" { sourceSet sourceSets.main }
+    maven {
+        name = 'CurseMaven'
+        url = 'https://www.cursemaven.com'
     }
 }
 
 dependencies {
-    def localOcApi = providers.gradleProperty('opensockets_oc_api')
-    if (localOcApi.isPresent()) {
-        compileOnly files(localOcApi.get())
-    } else {
-        compileOnly "li.cil.oc:opencomputers:${project.opencomputers_api_version}:api"
-    }
+    minecraft "net.minecraftforge:forge:${project.minecraft_version}-${project.forge_version}"
 
-    def localOcRuntime = providers.gradleProperty('opensockets_oc_runtime')
-    if (localOcRuntime.isPresent()) {
-        runtimeOnly files(localOcRuntime.get())
+    def localOcJar = providers.gradleProperty('opensockets_oc_jar')
+    if (localOcJar.isPresent()) {
+        compileOnly fg.deobf(files(localOcJar.get()))
+        runtimeOnly fg.deobf(files(localOcJar.get()))
     } else {
-        runtimeOnly "li.cil.oc:opencomputers:${project.opencomputers_version}"
-    }
-
-    // OpenComputers: Rebooted uses Kotori's Scala language provider. Keep it
-    // as a separate runtime dependency; OpenSockets must not bundle OC or its
-    // language provider into the addon jar.
-    def localScalaRuntime = providers.gradleProperty('opensockets_scala_runtime')
-    if (localScalaRuntime.isPresent()) {
-        runtimeOnly files(localScalaRuntime.get())
-    } else {
-        runtimeOnly("com.kotori316:scalablecatsforce-neoforge:${project.opencomputers_scala_version}:with-library") {
-            transitive = false
-        }
+        def oc = project.opencomputers_dependency
+        compileOnly fg.deobf(oc)
+        runtimeOnly fg.deobf(oc)
     }
 }
 
@@ -66,21 +77,22 @@ tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }
 
-def resourceProperties = [
-        mod_id: project.mod_id,
-        mod_name: project.mod_name,
-        mod_author: project.mod_author,
-        license: project.license,
-        description: project.description,
-        version: project.version.toString(),
-        neoforge_loader_version_range: project.neoforge_loader_version_range,
-        neoforge_version: project.neoforge_version,
-        minecraft_version_range: project.minecraft_version_range
-]
+processResources {
+    inputs.property 'version', project.version
+    filesMatching('mcmod.info') {
+        expand version: project.version
+    }
+}
 
-tasks.named('processResources') {
-    inputs.properties(resourceProperties)
-    filesMatching('META-INF/neoforge.mods.toml') {
-        expand(resourceProperties)
+jar {
+    manifest {
+        attributes([
+                'Specification-Title'     : project.mod_name,
+                'Specification-Vendor'    : project.mod_author,
+                'Specification-Version'   : '1',
+                'Implementation-Title'    : project.mod_name,
+                'Implementation-Version'  : project.version,
+                'Implementation-Vendor'   : project.mod_author
+        ])
     }
 }

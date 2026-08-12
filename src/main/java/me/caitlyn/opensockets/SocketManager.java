@@ -36,6 +36,10 @@ public final class SocketManager {
     }
 
     public Listener listen(int requestedPort) throws IOException {
+        if (requestedPort != 0) {
+            Listener existing = listenerOnPort(requestedPort);
+            if (existing != null) return existing;
+        }
         return openListener(requestedPort, nextHandle.getAndIncrement());
     }
 
@@ -53,13 +57,13 @@ public final class SocketManager {
     }
 
     private Listener openListener(int requestedPort, int handle) throws IOException {
-        int start = OpenSocketsConfig.PORT_START.get();
-        int end = OpenSocketsConfig.PORT_END.get();
+        int start = OpenSocketsConfig.PORT_START;
+        int end = OpenSocketsConfig.PORT_END;
         if (start > end) throw new IllegalArgumentException("invalid configured port range");
         if (requestedPort != 0 && (requestedPort < start || requestedPort > end)) {
             throw new IllegalArgumentException("port is outside the configured range");
         }
-        if (listeners.size() >= OpenSocketsConfig.MAX_LISTENERS_PER_CARD.get()) {
+        if (listeners.size() >= OpenSocketsConfig.MAX_LISTENERS_PER_CARD) {
             throw new IllegalArgumentException("listener limit reached");
         }
 
@@ -70,7 +74,7 @@ public final class SocketManager {
             ServerSocket server = new ServerSocket();
             try {
                 server.setReuseAddress(false);
-                server.bind(bindAddress(port), OpenSocketsConfig.MAX_CONNECTIONS_PER_LISTENER.get());
+                server.bind(bindAddress(port), OpenSocketsConfig.MAX_CONNECTIONS_PER_LISTENER);
                 Listener listener = new Listener(handle, server, this);
                 listeners.put(listener.id(), listener);
                 EXECUTOR.execute(listener::acceptLoop);
@@ -86,12 +90,27 @@ public final class SocketManager {
         throw lastFailure == null ? new IOException("no port available") : lastFailure;
     }
 
-    public record ListenerState(int id, int port) {
+    public static final class ListenerState {
+        private final int id;
+        private final int port;
+
+        public ListenerState(int id, int port) {
+            this.id = id;
+            this.port = port;
+        }
+
+        public int id() {
+            return id;
+        }
+
+        public int port() {
+            return port;
+        }
     }
 
     private static SocketAddress bindAddress(int port) {
-        String address = OpenSocketsConfig.BIND_ADDRESS.get();
-        return new InetSocketAddress(address == null || address.isBlank() ? "0.0.0.0" : address, port);
+        String address = OpenSocketsConfig.BIND_ADDRESS;
+        return new InetSocketAddress(address == null || address.trim().isEmpty() ? "0.0.0.0" : address, port);
     }
 
     private Connection addConnection(Socket socket) throws IOException {
@@ -115,6 +134,13 @@ public final class SocketManager {
         return listeners.get(id);
     }
 
+    private Listener listenerOnPort(int port) {
+        for (Listener listener : listeners.values()) {
+            if (listener.port() == port) return listener;
+        }
+        return null;
+    }
+
     public Connection connection(int id) {
         return connections.get(id);
     }
@@ -136,11 +162,11 @@ public final class SocketManager {
     public void closeAll() {
         listeners.values().forEach(this::closeListener);
         connections.values().forEach(Connection::close);
-        INSTANCES.remove(this);
     }
 
     public static void shutdown() {
         INSTANCES.forEach(SocketManager::closeAll);
+        INSTANCES.clear();
     }
 
     public final class Listener {
@@ -154,7 +180,7 @@ public final class SocketManager {
             this.id = id;
             this.server = server;
             this.owner = owner;
-            this.pending = new LinkedBlockingQueue<>(OpenSocketsConfig.MAX_CONNECTIONS_PER_LISTENER.get());
+            this.pending = new LinkedBlockingQueue<>(OpenSocketsConfig.MAX_CONNECTIONS_PER_LISTENER);
         }
 
         public int id() {
@@ -235,7 +261,7 @@ public final class SocketManager {
                 while (open.get() && (count = stream.read(buffer)) != -1) {
                     byte[] data = java.util.Arrays.copyOf(buffer, count);
                     int total = bufferedInput.addAndGet(count);
-                    if (total > OpenSocketsConfig.MAX_BUFFERED_BYTES.get() || !input.offer(data)) {
+                    if (total > OpenSocketsConfig.MAX_BUFFERED_BYTES || !input.offer(data)) {
                         close();
                         return;
                     }
@@ -281,9 +307,9 @@ public final class SocketManager {
         }
 
         public boolean write(byte[] data) {
-            if (!open.get() || data.length > OpenSocketsConfig.MAX_BUFFERED_BYTES.get()) return false;
+            if (!open.get() || data.length > OpenSocketsConfig.MAX_BUFFERED_BYTES) return false;
             int total = bufferedOutput.addAndGet(data.length);
-            if (total > OpenSocketsConfig.MAX_BUFFERED_BYTES.get() || !output.offer(data.clone())) {
+            if (total > OpenSocketsConfig.MAX_BUFFERED_BYTES || !output.offer(data.clone())) {
                 bufferedOutput.addAndGet(-data.length);
                 return false;
             }

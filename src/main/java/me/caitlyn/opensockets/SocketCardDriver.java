@@ -5,8 +5,8 @@ import li.cil.oc.api.internal.Microcontroller;
 import li.cil.oc.api.network.EnvironmentHost;
 import li.cil.oc.api.network.ManagedEnvironment;
 import li.cil.oc.api.prefab.DriverItem;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
 
 public final class SocketCardDriver extends DriverItem implements HostAware {
     public SocketCardDriver(Item item) {

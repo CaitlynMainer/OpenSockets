@@ -1,44 +1,51 @@
 package me.caitlyn.opensockets;
 
-import net.neoforged.neoforge.common.ModConfigSpec;
+import net.minecraftforge.common.config.Configuration;
+
+import java.io.File;
 
 public final class OpenSocketsConfig {
-    public static final ModConfigSpec SPEC;
+    private static final String CATEGORY = "sockets";
 
-    public static final ModConfigSpec.IntValue PORT_START;
-    public static final ModConfigSpec.IntValue PORT_END;
-    public static final ModConfigSpec.ConfigValue<String> BIND_ADDRESS;
-    public static final ModConfigSpec.IntValue MAX_LISTENERS_PER_CARD;
-    public static final ModConfigSpec.IntValue MAX_CONNECTIONS_PER_LISTENER;
-    public static final ModConfigSpec.IntValue MAX_BUFFERED_BYTES;
+    private static Configuration configuration;
 
-    static {
-        ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
-        builder.comment("OpenSockets server-side TCP listener settings.",
-                "Set bindAddress to 0.0.0.0 only when you want listeners reachable outside the host.").push("sockets");
+    public static volatile int PORT_START = 28000;
+    public static volatile int PORT_END = 28099;
+    public static volatile String BIND_ADDRESS = "127.0.0.1";
+    public static volatile int MAX_LISTENERS_PER_CARD = 4;
+    public static volatile int MAX_CONNECTIONS_PER_LISTENER = 16;
+    public static volatile int MAX_BUFFERED_BYTES = 1048576;
 
-        PORT_START = builder
-                .comment("First port that OpenComputers programs may bind.")
-                .defineInRange("portStart", 28000, 1, 65535);
-        PORT_END = builder
-                .comment("Last port that OpenComputers programs may bind.")
-                .defineInRange("portEnd", 28099, 1, 65535);
-        BIND_ADDRESS = builder
-                .comment("Local address used for listeners. 127.0.0.1 is localhost-only; 0.0.0.0 exposes listeners on all interfaces.")
-                .define("bindAddress", "127.0.0.1");
-        MAX_LISTENERS_PER_CARD = builder
-                .comment("Maximum simultaneous listening sockets per socket card.")
-                .defineInRange("maxListenersPerCard", 4, 1, 64);
-        MAX_CONNECTIONS_PER_LISTENER = builder
-                .comment("Maximum queued or open connections for one listening socket.")
-                .defineInRange("maxConnectionsPerListener", 16, 1, 256);
-        MAX_BUFFERED_BYTES = builder
-                .comment("Maximum queued bytes in either direction for one connection.")
-                .defineInRange("maxBufferedBytes", 1048576, 4096, 16777216);
-
-        builder.pop();
-        SPEC = builder.build();
+    public static void load(File file) {
+        configuration = new Configuration(file);
+        sync();
     }
 
-    private OpenSocketsConfig() {}
+    private static void sync() {
+        if (configuration == null) return;
+
+        PORT_START = configuration.getInt("portStart", CATEGORY, PORT_START,
+                1, 65535, "First port that OpenComputers programs may bind.");
+        PORT_END = configuration.getInt("portEnd", CATEGORY, PORT_END,
+                1, 65535, "Last port that OpenComputers programs may bind.");
+        BIND_ADDRESS = configuration.getString("bindAddress", CATEGORY, BIND_ADDRESS,
+                "Local address used for listeners. 127.0.0.1 is localhost-only; 0.0.0.0 exposes listeners on all interfaces.");
+        MAX_LISTENERS_PER_CARD = configuration.getInt("maxListenersPerCard", CATEGORY, MAX_LISTENERS_PER_CARD,
+                1, 64, "Maximum simultaneous listening sockets per socket card.");
+        MAX_CONNECTIONS_PER_LISTENER = configuration.getInt("maxConnectionsPerListener", CATEGORY, MAX_CONNECTIONS_PER_LISTENER,
+                1, 256, "Maximum queued or open connections for one listening socket.");
+        MAX_BUFFERED_BYTES = configuration.getInt("maxBufferedBytes", CATEGORY, MAX_BUFFERED_BYTES,
+                4096, 16777216, "Maximum queued bytes in either direction for one connection.");
+
+        if (PORT_START > PORT_END) {
+            PORT_END = PORT_START;
+        }
+
+        if (configuration.hasChanged()) {
+            configuration.save();
+        }
+    }
+
+    private OpenSocketsConfig() {
+    }
 }

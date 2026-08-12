@@ -25,6 +25,7 @@ replay_pid*
 
 # Gradle / NeoForge outputs
 .gradle/
+.gradle-legacy/
 build/
 run/
 !gradle/wrapper/gradle-wrapper.jar
