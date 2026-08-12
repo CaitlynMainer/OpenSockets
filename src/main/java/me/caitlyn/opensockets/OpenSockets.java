@@ -18,7 +18,7 @@ import java.util.concurrent.Callable;
 @Mod(modid = OpenSockets.MOD_ID,
         name = OpenSockets.MOD_NAME,
         version = OpenSockets.VERSION,
-        acceptedMinecraftVersions = "[1.12.2]",
+        acceptedMinecraftVersions = "[1.12.1]",
         dependencies = "required-after:opencomputers@[1.7.7,)")
 @Mod.EventBusSubscriber(modid = OpenSockets.MOD_ID)
 public final class OpenSockets {
