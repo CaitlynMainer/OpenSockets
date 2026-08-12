@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    { "item": "opencomputers:internetcard" },
+    { "item": "opencomputers:networkcard" }
+  ],
+  "result": {
+    "id": "opensockets:socket_card",
+    "count": 1
+  }
+}
